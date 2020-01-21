@@ -4,20 +4,11 @@ import sys
 import random
 
 lev = input("Введите название файла с уровнем в формате '*название*.txt' ")
-pygame.init()
-size = WIDTH, HEIGHT = 500, 500
-running = True
-screen = pygame.display.set_mode(size)
-screen.fill((0, 0, 0))
-clock = pygame.time.Clock()
-FPS = 50
-walls_for_dino = ['']
 
 
-def load_image(name, colorkey=None):
-    fullname = os.path.join('data', name)
-    image = pygame.image.load(fullname).convert()
-    return image
+def terminate():
+    pygame.quit()
+    sys.exit()
 
 
 def load_level(f_name):
@@ -32,9 +23,21 @@ def load_level(f_name):
         terminate()
 
 
-def terminate():
-    pygame.quit()
-    sys.exit()
+a = load_level(lev)
+pygame.init()
+size = WIDTH, HEIGHT = 500, 500
+running = True
+screen = pygame.display.set_mode(size)
+screen.fill((0, 0, 0))
+clock = pygame.time.Clock()
+FPS = 50
+walls_for_dino = ['']
+
+
+def load_image(name, colorkey=None):
+    fullname = os.path.join('data', name)
+    image = pygame.image.load(fullname).convert()
+    return image
 
 
 def generate_level(level):
@@ -138,18 +141,29 @@ def level(lev):
 def play_dino():
     screen.fill((255, 255, 255))
     fon = load_image('dino_fon.png')
-    screen.blit(fon, (0, 154))
+    fon_x = 0
+    screen.blit(fon, (0, 135))
     pygame.display.flip()
-    dino = GoogleDino()
+    dino_group = pygame.sprite.Group()
+    walls_group = []
+    dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, 0, 0)
+    dino.rect = dino.rect.move(WIDTH // 15, 245)
+    dino_group.add(dino)
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
-            elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+            elif event.type == pygame.KEYDOWN:
                 if event.key == 32:  # space
                     pass
+        screen.fill((255, 255, 255))
+        a = clock.tick()
+        screen.blit(fon, (fon_x, 135))
+        dino.update()
+        dino.image.set_colorkey(dino.image.get_at((0, 0)))
+        dino_group.draw(screen)
         pygame.display.flip()
-        clock.tick(FPS)
+        clock.tick(15)
 
 
 player = None
@@ -219,6 +233,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
+        # self.image.set_colorkey(self.image.get_at((0, 0)))
         self.rect = self.rect.move(x, y)
 
     def cut_sheet(self, sheet, columns, rows):
@@ -233,6 +248,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
     def update(self):
         self.cur_frame = (self.cur_frame + 1) % len(self.frames)
         self.image = self.frames[self.cur_frame]
+        self.image.set_colorkey(self.image.get_at((0, 0)))
 
 
 class WallForDino:
@@ -240,6 +256,7 @@ class WallForDino:
         pass
 
 
+'''
 class GoogleDino:
     def __init__(self):
         self.score = 0
@@ -250,8 +267,7 @@ class GoogleDino:
 
     def play(self):
         pass
-
-
+'''
 
 
 start_screen()
