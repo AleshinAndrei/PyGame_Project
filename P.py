@@ -4,6 +4,23 @@ import sys
 import random
 
 
+def load_image(name, colorkey=None):
+    fullname = os.path.join('data', name)
+    if colorkey is not None:
+        image = pygame.image.load(fullname).convert()
+        if colorkey == -1:
+            colorkey = image.get_at((0, 0))
+        image.set_colorkey(colorkey)
+    else:
+        image = pygame.image.load(fullname).convert()
+    return image
+
+
+def terminate():
+    pygame.quit()
+    sys.exit()
+
+
 class MainGame:
     def __init__(self):
         self.lvl_map = [['@']]
@@ -20,8 +37,8 @@ class MainGame:
         self.main_screen = pygame.display.set_mode(self.SIZE)
         self.main_screen.fill((0, 0, 0))
 
-        self.tile_images = {'wall': self.load_image('box.png'), 'empty': self.load_image('grass.png')}
-        self.player_image = self.load_image('mario.png')
+        self.tile_images = {'wall': load_image('box.png'), 'empty': load_image('grass.png')}
+        self.player_image = load_image('mario.png')
 
         self.tile_width = 50
         self.tile_height = 50
@@ -47,21 +64,10 @@ class MainGame:
         except FileNotFoundError:
             print(f"Файл '{f_name}' не найден")
 
-    def load_image(self, name, colorkey=None):
-        fullname = os.path.join('data', name)
-        if colorkey is not None:
-            image = pygame.image.load(fullname).convert()
-            if colorkey == -1:
-                colorkey = image.get_at((0, 0))
-            image.set_colorkey(colorkey)
-        else:
-            image = pygame.image.load(fullname).convert()
-        return image
-
     def start(self):
         intro_text = ['Hello!', 'There are some rules!', 'JOKE', "We have no rules"]
 
-        background = pygame.transform.scale(self.load_image('fon.jpg'), self.SIZE)
+        background = pygame.transform.scale(load_image('fon.jpg'), self.SIZE)
         self.main_screen.blit(background, (0, 0))
         text_coord = 50
         for line in intro_text:
@@ -113,7 +119,7 @@ class MainGame:
                     elif event.key == pygame.K_LEFT:
                         self.move_player(-1, 0)
                     elif event.key == pygame.K_SPACE:
-                        pass
+                        dino_play = GoogleDino(self.main_screen)
                         # тут должен быть динозаврик
             # изменяем ракурс камеры
             camera.update()
@@ -141,41 +147,6 @@ class MainGame:
                     self.p_x = x
                     self.p_y = y
         self.all_sprites.draw(self.main_screen)
-
-
-def terminate():
-    pygame.quit()
-    sys.exit()
-
-
-"""
-def play_dino():
-    screen.fill((255, 255, 255))
-    fon = load_image('dino_fon.png')
-    fon_x = 0
-    screen.blit(fon, (0, 135))
-    pygame.display.flip()
-    dino_group = pygame.sprite.Group()
-    walls_group = []
-    dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, 0, 0)
-    dino.rect = dino.rect.move(WIDTH // 15, 245)
-    dino_group.add(dino)
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                terminate()
-            elif event.type == pygame.KEYDOWN:
-                if event.key == 32:  # space
-                    pass
-        screen.fill((255, 255, 255))
-        a = clock.tick()
-        screen.blit(fon, (fon_x, 135))
-        dino.update()
-        dino.image.set_colorkey(dino.image.get_at((0, 0)))
-        dino_group.draw(screen)
-        pygame.display.flip()
-        clock.tick(15)
-"""
 
 
 class Tile(pygame.sprite.Sprite):
@@ -231,7 +202,7 @@ class Camera:
 
 class AnimatedSprite(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y):
-        super().__init__(self.parent.all_sprites)
+        super().__init__(main_game.all_sprites)
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
@@ -254,23 +225,70 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.image.set_colorkey(self.image.get_at((0, 0)))
 
 
-class WallForDino:
-    def __init__(self):
-        pass
+class WallForDino(pygame.sprite.Sprite):
+    def __init__(self, parent):
+        super().__init__(parent.player_group, parent.all_sprites)
+        self.parent = parent
+        self.wall_image = load_image('kaktus.png')
+        self.wall_rect = self.wall_image.get_rect().move(0, 0)
+        sprite = pygame.sprite.Sprite()
+        sprite.image = self.wall_image
+        self.wall_image.set_colorkey(self.wall_image.get_at((0, 0)))
+        sprite.rect = self.wall_image
+        parent.wall_sprite.add(sprite)
+        parent.wall_sprite.draw(main_game.main_screen)
 
 
-'''
 class GoogleDino:
-    def __init__(self):
+    def __init__(self, screen):
+        screen.fill((255, 255, 255))
+        self.fon = load_image('dino_fon.png')
+        self.fon_x = 0
+        screen.blit(self.fon, (0, 135))
+        pygame.display.flip()
+        self.dino_group = pygame.sprite.Group()
+        walls_group = []
+        self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, 0, 0)
+        self.dino.rect = self.dino.rect.move(main_game.WIDTH // 15, 245)
+        self.dino_group.add(self.dino)
+        self.screen = screen
+
+        self.screen.fill((255, 255, 255))
+        self.screen.blit(self.fon, (self.fon_x, 135))
+        self.dino.update()
+        self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
+        self.dino_group.draw(self.screen)
+        pygame.display.flip()
+
+        self.play()
+
+        ''' 
         self.score = 0
         self.wall_list = []
         self.hero_run = AnimatedSprite(load_image('dino-run.png'), 5, 1, 63, 70)
         self.hero_jump = AnimatedSprite(load_image('dino-jump.png'), 5, 1, 63, 100)
-        self.hero_x_right = WIDTH // 15
+        self.hero_x_right = main_game.WIDTH // 15
+        '''
 
     def play(self):
-        pass
-'''
+        playing = True
+        while playing:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    terminate()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == 32:  # space
+                        pass
+                    elif event.key == 27:  # esc  => break the mini-game
+                        playing = False
+            self.screen.fill((255, 255, 255))
+            a = main_game.clock.tick()
+            self.screen.blit(self.fon, (self.fon_x, 135))
+            self.dino.update()
+            self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
+            self.dino_group.draw(self.screen)
+            pygame.display.flip()
+            main_game.clock.tick(15)
 
 
 if __name__ == "__main__":
