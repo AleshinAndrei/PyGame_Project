@@ -1,7 +1,7 @@
 import pygame
 import os
 import sys
-from random import randrange, random, choices
+from random import randrange, random, sample
 from math import e
 
 
@@ -82,30 +82,26 @@ class MainGame:
 
         y = 6
         x = self.lvl_width // 4 * 2 + 1
-        self.lvl_map[y][x] = 'O'
+        self.lvl_map[y][x] = ' '
 
         count = (self.lvl_height - 6) // 2 * (self.lvl_width // 2) - 1
         queue = [(y, x, 0, 0, None, None)]
         stack = [[queue[0]]]
         while count > 0:
-            print(count)
-            print('\n'.join([''.join(row) for row in self.lvl_map]))
-            print()
-            print()
             new_step = []
             new_queue = []
             for y, x, self_lvl, self_index, pre_point_lvl, pre_point_index in queue:
                 new_branch = False
-                for i, j in choices([(y - 2, x), (y, x + 2), (y + 2, x), (y, x - 2)], k=4):
+                for i, j in sample([(y - 2, x), (y, x + 2), (y + 2, x), (y, x - 2)], k=4):
                     try:
                         cell = self.lvl_map[i][j]
                     except IndexError:
                         continue
                     if cell == 'C':
                         count -= 1
-                        self.lvl_map[i][j] = 'O'
-                        self.lvl_map[(y + i) // 2][(x + j) // 2] = "O"
-                        new_point = (i, j, self_lvl + 1, len(new_step), self_lvl, self_index)
+                        self.lvl_map[i][j] = " "
+                        self.lvl_map[(y + i) // 2][(x + j) // 2] = " "
+                        new_point = (i, j, len(stack), len(new_step), self_lvl, self_index)
                         new_step.append(new_point)
                         new_queue.append(new_point)
                         if random() > 2 / (1 + e ** (-self.difficulty * 0.3)) - 1:
@@ -117,10 +113,9 @@ class MainGame:
                         try:
                             new_queue.append(stack[pre_point_lvl][pre_point_index])
                         except TypeError:
-                            pass
-                        except IndexError:
-                            print(pre_point_index, pre_point_lvl)
-            stack.append(new_step)
+                            raise IndexError("Упёрся в хвост, но не нашёл ещё несколько закрытых комнат")
+            if new_step:
+                stack.append(new_step)
             queue = new_queue[:]
 
         y = randrange(6, self.lvl_height, 2)
