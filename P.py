@@ -27,7 +27,7 @@ class MainGame:
         self.lvl_width = None
         self.lvl_height = None
         self.lvl_map = [['@']]
-        self.difficulty = 100
+        self.difficulty = 0
 
         self.load_level(input("Введите название файла с уровнем в формате '*название*.txt' "))
         self.WIDTH = 500
@@ -80,39 +80,48 @@ class MainGame:
             self.lvl_map += [row]
             self.lvl_map += [['#'] * self.lvl_width]
 
-        count = (self.lvl_height - 6) // 2 * (self.lvl_width // 2) - 1
-        stack = []
         y = 6
         x = self.lvl_width // 4 * 2 + 1
         self.lvl_map[y][x] = 'O'
-        stack.append((y, x))
+
+        count = (self.lvl_height - 6) // 2 * (self.lvl_width // 2) - 1
+        queue = [(y, x, 0, 0, None, None)]
+        stack = [[queue[0]]]
         while count > 0:
-            for i, j in choices([(y - 2, x), (y, x + 2), (y + 2, x), (y, x - 2)], k=4):
-                try:
-                    cell = self.lvl_map[i][j]
-                except IndexError:
-                    continue
-                if cell == 'C':
-                    count -= 1
-                    self.lvl_map[i][j] = 'O'
-                elif cell == 'O':
-                    if random() > 0.5 / (1 + e ** (-self.difficulty / 5)) - 1:
-                        print('OK!')
+            print(count)
+            print('\n'.join([''.join(row) for row in self.lvl_map]))
+            print()
+            print()
+            new_step = []
+            new_queue = []
+            for y, x, self_lvl, self_index, pre_point_lvl, pre_point_index in queue:
+                new_branch = False
+                for i, j in choices([(y - 2, x), (y, x + 2), (y + 2, x), (y, x - 2)], k=4):
+                    try:
+                        cell = self.lvl_map[i][j]
+                    except IndexError:
                         continue
+                    if cell == 'C':
+                        count -= 1
+                        self.lvl_map[i][j] = 'O'
+                        self.lvl_map[(y + i) // 2][(x + j) // 2] = "O"
+                        new_point = (i, j, self_lvl + 1, len(new_step), self_lvl, self_index)
+                        new_step.append(new_point)
+                        new_queue.append(new_point)
+                        if random() > 2 / (1 + e ** (-self.difficulty * 0.3)) - 1:
+                            break
+                        else:
+                            new_branch = True
                 else:
-                    continue
-                stack.append((i, j))
-                self.lvl_map[(y + i) // 2][(x + j) // 2] = "O"
-                x = j
-                y = i
-                break
-            else:
-                try:
-                    y, x = stack.pop()
-                except IndexError:
-                    break
-            print(len(stack))
-            print(stack)
+                    if not new_branch:
+                        try:
+                            new_queue.append(stack[pre_point_lvl][pre_point_index])
+                        except TypeError:
+                            pass
+                        except IndexError:
+                            print(pre_point_index, pre_point_lvl)
+            stack.append(new_step)
+            queue = new_queue[:]
 
         y = randrange(6, self.lvl_height, 2)
         x = randrange(1, self.lvl_width, 2)
