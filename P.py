@@ -1,7 +1,8 @@
 import pygame
 import os
 import sys
-import random
+from random import randrange, random, choices
+from math import e
 
 
 def load_image(name, colorkey=None):
@@ -23,7 +24,11 @@ def terminate():
 
 class MainGame:
     def __init__(self):
+        self.lvl_width = None
+        self.lvl_height = None
         self.lvl_map = [['@']]
+        self.difficulty = 100
+
         self.load_level(input("Введите название файла с уровнем в формате '*название*.txt' "))
         self.WIDTH = 500
         self.HEIGHT = 500
@@ -47,9 +52,6 @@ class MainGame:
         self.p_x = 0
         self.p_y = 0
 
-        self.lvl_width = None
-        self.lvl_height = None
-
         self.all_sprites = pygame.sprite.Group()
         self.tiles_group = pygame.sprite.Group()
         self.player_group = pygame.sprite.Group()
@@ -63,6 +65,60 @@ class MainGame:
             self.lvl_map = list(map(list, map(lambda x: x.ljust(max_width, '.'), level_map)))
         except FileNotFoundError:
             print(f"Файл '{f_name}' не найден")
+
+    def load_random_lvl(self):
+        self.lvl_width = 49
+        self.lvl_height = 54
+        self.lvl_map = []
+        self.lvl_map += [['.'] * self.lvl_width for _ in range(5)]
+        self.lvl_map += [['#'] * self.lvl_width]
+        self.lvl_map[5][self.lvl_width // 4 * 2 + 1] = '.'
+        for row in range((self.lvl_height - 6) // 2):
+            row = ['#'] * self.lvl_width
+            for col in range(1, self.lvl_width, 2):
+                row[col] = 'C'
+            self.lvl_map += [row]
+            self.lvl_map += [['#'] * self.lvl_width]
+
+        count = (self.lvl_height - 6) // 2 * (self.lvl_width // 2) - 1
+        stack = []
+        y = 6
+        x = self.lvl_width // 4 * 2 + 1
+        self.lvl_map[y][x] = 'O'
+        stack.append((y, x))
+        while count > 0:
+            for i, j in choices([(y - 2, x), (y, x + 2), (y + 2, x), (y, x - 2)], k=4):
+                try:
+                    cell = self.lvl_map[i][j]
+                except IndexError:
+                    continue
+                if cell == 'C':
+                    count -= 1
+                    self.lvl_map[i][j] = 'O'
+                elif cell == 'O':
+                    if random() > 0.5 / (1 + e ** (-self.difficulty / 5)) - 1:
+                        print('OK!')
+                        continue
+                else:
+                    continue
+                stack.append((i, j))
+                self.lvl_map[(y + i) // 2][(x + j) // 2] = "O"
+                x = j
+                y = i
+                break
+            else:
+                try:
+                    y, x = stack.pop()
+                except IndexError:
+                    break
+            print(len(stack))
+            print(stack)
+
+        y = randrange(6, self.lvl_height, 2)
+        x = randrange(1, self.lvl_width, 2)
+        self.lvl_map[y][x] = "$"  # это у нас будет выходом, который перемещает нас на след. уровень
+
+        print('\n'.join([''.join(row) for row in self.lvl_map]))
 
     def start(self):
         intro_text = ['Hello!', 'There are some rules!', 'JOKE', "We have no rules"]
@@ -294,4 +350,4 @@ class GoogleDino:
 if __name__ == "__main__":
     pygame.init()
     main_game = MainGame()
-    main_game.start()
+    main_game.load_random_lvl()
