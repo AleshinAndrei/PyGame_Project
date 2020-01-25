@@ -29,7 +29,7 @@ class MainGame:
         self.lvl_map = [['@']]
         self.difficulty = 0
 
-        self.load_level(input("Введите название файла с уровнем в формате '*название*.txt' "))
+        self.load_random_lvl()
         self.WIDTH = 500
         self.HEIGHT = 500
         self.SIZE = (self.WIDTH, self.HEIGHT)
@@ -67,12 +67,13 @@ class MainGame:
             print(f"Файл '{f_name}' не найден")
 
     def load_random_lvl(self):
-        self.lvl_width = 49
+        self.lvl_width = 59
         self.lvl_height = 54
         self.lvl_map = []
         self.lvl_map += [['.'] * self.lvl_width for _ in range(5)]
         self.lvl_map += [['#'] * self.lvl_width]
         self.lvl_map[5][self.lvl_width // 4 * 2 + 1] = '.'
+        self.lvl_map[2][self.lvl_width // 4 * 2 + 1] = '@'
         for row in range((self.lvl_height - 6) // 2):
             row = ['#'] * self.lvl_width
             for col in range(1, self.lvl_width, 2):
@@ -82,12 +83,16 @@ class MainGame:
 
         y = 6
         x = self.lvl_width // 4 * 2 + 1
-        self.lvl_map[y][x] = ' '
+        self.lvl_map[y][x] = '.'
 
         count = (self.lvl_height - 6) // 2 * (self.lvl_width // 2) - 1
         queue = [(y, x, 0, 0, None, None)]
         stack = [[queue[0]]]
         while count > 0:
+            # print(''.join(map(str, range(self.lvl_width))))
+            # print('\n'.join([str(i) + ":\t" + ''.join(row) for i, row in enumerate(self.lvl_map)]))
+            # print(count)
+            # print()
             new_step = []
             new_queue = []
             for y, x, self_lvl, self_index, pre_point_lvl, pre_point_index in queue:
@@ -99,30 +104,28 @@ class MainGame:
                         continue
                     if cell == 'C':
                         count -= 1
-                        self.lvl_map[i][j] = " "
-                        self.lvl_map[(y + i) // 2][(x + j) // 2] = " "
+                        self.lvl_map[i][j] = "."
+                        self.lvl_map[(y + i) // 2][(x + j) // 2] = "."
                         new_point = (i, j, len(stack), len(new_step), self_lvl, self_index)
                         new_step.append(new_point)
                         new_queue.append(new_point)
-                        if random() > 2 / (1 + e ** (-self.difficulty * 0.3)) - 1:
+                        if random() > 2 / (1 + e ** (-self.difficulty * 0.3)) - 1 or new_branch:
                             break
-                        else:
+                        elif not new_branch:
                             new_branch = True
                 else:
                     if not new_branch:
                         try:
                             new_queue.append(stack[pre_point_lvl][pre_point_index])
                         except TypeError:
-                            raise IndexError("Упёрся в хвост, но не нашёл ещё несколько закрытых комнат")
+                            pass
             if new_step:
                 stack.append(new_step)
-            queue = new_queue[:]
+            queue = sample(new_queue, len(new_queue))
 
-        y = randrange(6, self.lvl_height, 2)
-        x = randrange(1, self.lvl_width, 2)
-        self.lvl_map[y][x] = "$"  # это у нас будет выходом, который перемещает нас на след. уровень
-
-        print('\n'.join([''.join(row) for row in self.lvl_map]))
+        # y = randrange(6, self.lvl_height, 2)
+        # x = randrange(1, self.lvl_width, 2)
+        # self.lvl_map[y][x] = "$"  # это у нас будет выходом, который перемещает нас на след. уровень
 
     def start(self):
         intro_text = ['Hello!', 'There are some rules!', 'JOKE', "We have no rules"]
@@ -354,4 +357,4 @@ class GoogleDino:
 if __name__ == "__main__":
     pygame.init()
     main_game = MainGame()
-    main_game.load_random_lvl()
+    main_game.start()
