@@ -54,6 +54,8 @@ class MainGame:
         self.tiles_group = pygame.sprite.Group()
         self.player_group = pygame.sprite.Group()
 
+        self.dino_play = None
+
     def load_level(self, f_name):
         fname = "data/" + f_name
         try:
@@ -63,6 +65,7 @@ class MainGame:
             self.lvl_map = list(map(list, map(lambda x: x.ljust(max_width, '.'), level_map)))
         except FileNotFoundError:
             print(f"Файл '{f_name}' не найден")
+            terminate()
 
     def start(self):
         intro_text = ['Hello!', 'There are some rules!', 'JOKE', "We have no rules"]
@@ -119,8 +122,7 @@ class MainGame:
                     elif event.key == pygame.K_LEFT:
                         self.move_player(-1, 0)
                     elif event.key == pygame.K_SPACE:
-                        dino_play = GoogleDino(self.main_screen)
-                        # тут должен быть динозаврик
+                        self.dino_play = GoogleDino(self.main_screen)
             # изменяем ракурс камеры
             camera.update()
             # обновляем положение всех спрайтов
@@ -203,12 +205,17 @@ class Camera:
 class AnimatedSprite(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y):
         super().__init__(main_game.all_sprites)
+        self.jumping = False
+        self.sheet = sheet
+        self.columns = columns
+        self.rows = rows
+        self.x = x
+        self.y = y
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
-        # self.image.set_colorkey(self.image.get_at((0, 0)))
-        self.rect = self.rect.move(x, y)
+        self.rect = self.rect.move(x - self.rect[2], y - self.rect[3])
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
@@ -220,23 +227,42 @@ class AnimatedSprite(pygame.sprite.Sprite):
                     frame_location, self.rect.size)))
 
     def update(self):
-        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
-        self.image = self.frames[self.cur_frame]
+        self.cur_frame += 1
+        self.image = self.frames[self.cur_frame % len(self.frames)]
         self.image.set_colorkey(self.image.get_at((0, 0)))
+        if self.jumping and self.cur_frame == len(self.frames):
+            self.jumping = False
+
+            self.frames = []
+            self.cut_sheet(self.sheet, self.columns, self.rows)
+            self.cur_frame = 0
+            self.image = self.frames[self.cur_frame]
+            self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3])
+            # self.image.set_colorkey(self.image.get_at((0, 0)))
+        self.cur_frame = self.cur_frame % len(self.frames)
+
+    def jump(self):
+        super().__init__(main_game.all_sprites)
+        self.jumping = True
+        self.frames = []
+        self.cut_sheet(load_image('dino-jump.png'), 7, 1)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        # self.image.set_colorkey(self.image.get_at((0, 0)))
+        self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3])
 
 
 class WallForDino(pygame.sprite.Sprite):
-    def __init__(self, parent):
-        super().__init__(parent.player_group, parent.all_sprites)
+    def __init__(self, parent, x):
+        super().__init__(parent.walls_group, parent.all_spr)
         self.parent = parent
-        self.wall_image = load_image('kaktus.png')
-        self.wall_rect = self.wall_image.get_rect().move(0, 0)
+        self.image = load_image('kaktus.png')
+        self.rect = self.image.get_rect().move(x, 300 - self.image.get_rect()[3])
         sprite = pygame.sprite.Sprite()
-        sprite.image = self.wall_image
-        self.wall_image.set_colorkey(self.wall_image.get_at((0, 0)))
-        sprite.rect = self.wall_image
-        parent.wall_sprite.add(sprite)
-        parent.wall_sprite.draw(main_game.main_screen)
+        sprite.image = self.image
+        self.image.set_colorkey(self.image.get_at((0, 0)))
+        sprite.rect = self.rect
+        parent.walls_group.add(sprite)
 
 
 class GoogleDino:
@@ -247,28 +273,27 @@ class GoogleDino:
         screen.blit(self.fon, (0, 135))
         pygame.display.flip()
         self.dino_group = pygame.sprite.Group()
-        walls_group = []
-        self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, 0, 0)
-        self.dino.rect = self.dino.rect.move(main_game.WIDTH // 15, 245)
+        self.walls_group = pygame.sprite.Group()
+        self.all_spr = pygame.sprite.Group()
+        n_walls = random.choice([i for i in range(10, 500)])
+        x_walls = list(set([random.choice([i for i in range(main_game.WIDTH + 100, 50000, 25)]) for p in range(n_walls)]))
+        for i in x_walls:
+            wall = WallForDino(self, i)
+        self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, main_game.WIDTH // 7, 303)
         self.dino_group.add(self.dino)
+        self.all_spr.add(self.dino)
         self.screen = screen
 
         self.screen.fill((255, 255, 255))
         self.screen.blit(self.fon, (self.fon_x, 135))
         self.dino.update()
         self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
-        self.dino_group.draw(self.screen)
+        self.all_spr.draw(self.screen)
         pygame.display.flip()
+        self.fps = 13
+        self.wall_move = -10
 
         self.play()
-
-        ''' 
-        self.score = 0
-        self.wall_list = []
-        self.hero_run = AnimatedSprite(load_image('dino-run.png'), 5, 1, 63, 70)
-        self.hero_jump = AnimatedSprite(load_image('dino-jump.png'), 5, 1, 63, 100)
-        self.hero_x_right = main_game.WIDTH // 15
-        '''
 
     def play(self):
         playing = True
@@ -278,17 +303,29 @@ class GoogleDino:
                     terminate()
                 elif event.type == pygame.KEYDOWN:
                     if event.key == 32:  # space
-                        pass
+                        self.dino.jump()
                     elif event.key == 27:  # esc  => break the mini-game
                         playing = False
             self.screen.fill((255, 255, 255))
             a = main_game.clock.tick()
+            for wall in self.walls_group:
+                o = wall.rect
+                if o[0] < - o[2]:
+                    self.walls_group.remove(wall)
+                wall.rect = wall.image.get_rect().move(wall.rect[0] + self.wall_move, wall.rect[1])
             self.screen.blit(self.fon, (self.fon_x, 135))
             self.dino.update()
             self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
             self.dino_group.draw(self.screen)
+            self.walls_group.draw(self.screen)
+            if self.dino.jumping:
+                self.fps = 9
+                self.wall_move = -15
+            else:
+                self.fps = 13
+                self.wall_move = -10
             pygame.display.flip()
-            main_game.clock.tick(15)
+            main_game.clock.tick(self.fps)
 
 
 if __name__ == "__main__":
