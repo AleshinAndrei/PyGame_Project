@@ -1,7 +1,7 @@
 import pygame
 import os
 import sys
-from random import randrange, random, sample
+from random import random, sample, choice
 from math import e
 
 
@@ -37,6 +37,7 @@ class MainGame:
 
         self.clock = pygame.time.Clock()
         self.FPS = 50
+        self.dino_FPS = 15
 
         self.running = True
         self.main_screen = pygame.display.set_mode(self.SIZE)
@@ -56,7 +57,9 @@ class MainGame:
         self.tiles_group = pygame.sprite.Group()
         self.player_group = pygame.sprite.Group()
 
-        self.dino_play = None
+        self.dino_is_active = False
+        self.dino_game = GoogleDino(self)
+        self.dino_rect = pygame.Rect(0, 0, 500, 500)
 
     def load_level(self, f_name):
         fname = "data/" + f_name
@@ -172,30 +175,36 @@ class MainGame:
         self.generate_level()
         camera = Camera(self)
         while True:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    terminate()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_UP:
-                        self.move_player(0, -1)
-                    elif event.key == pygame.K_DOWN:
-                        self.move_player(0, 1)
-                    elif event.key == pygame.K_RIGHT:
-                        self.move_player(1, 0)
-                    elif event.key == pygame.K_LEFT:
-                        self.move_player(-1, 0)
-                    elif event.key == pygame.K_SPACE:
-                        self.dino_play = GoogleDino(self.main_screen)
-            # изменяем ракурс камеры
-            camera.update()
-            # обновляем положение всех спрайтов
-            for sprite in self.all_sprites:
-                camera.apply(sprite)
-            self.main_screen.fill((0, 0, 0))
-            self.tiles_group.draw(self.main_screen)
-            self.player_group.draw(self.main_screen)
+            if self.dino_is_active:
+                self.main_screen.blit(self.dino_game.update(), self.dino_rect)
+            else:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        terminate()
+                    elif event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_UP:
+                            self.move_player(0, -1)
+                        elif event.key == pygame.K_DOWN:
+                            self.move_player(0, 1)
+                        elif event.key == pygame.K_RIGHT:
+                            self.move_player(1, 0)
+                        elif event.key == pygame.K_LEFT:
+                            self.move_player(-1, 0)
+                        elif event.key == pygame.K_SPACE:
+                            self.dino_is_active = True
+                # изменяем ракурс камеры
+                camera.update()
+                # обновляем положение всех спрайтов
+                for sprite in self.all_sprites:
+                    camera.apply(sprite)
+                self.main_screen.fill((0, 0, 0))
+                self.tiles_group.draw(self.main_screen)
+                self.player_group.draw(self.main_screen)
             pygame.display.flip()
-            self.clock.tick(self.FPS)
+            if self.dino_is_active:
+                self.clock.tick(self.dino_FPS)
+            else:
+                self.clock.tick(self.FPS)
 
     def generate_level(self):
         self.lvl_width = len(self.lvl_map[0])
@@ -266,8 +275,8 @@ class Camera:
 
 
 class AnimatedSprite(pygame.sprite.Sprite):
-    def __init__(self, sheet, columns, rows, x, y):
-        super().__init__(main_game.all_sprites)
+    def __init__(self, sheet, columns, rows, x, y, group):
+        super().__init__(group)
         self.jumping = False
         self.sheet = sheet
         self.columns = columns
@@ -329,66 +338,60 @@ class WallForDino(pygame.sprite.Sprite):
 
 
 class GoogleDino:
-    def __init__(self, screen):
-        screen.fill((255, 255, 255))
+    def __init__(self, parent):
+        self.parent = parent
+
+        self.screen_size = self.screen_width, self.screen_height = 500, 500
+        self.dino_screen = pygame.Surface(self.screen_size)
+
         self.fon = load_image('dino_fon.png')
         self.fon_x = 0
-        screen.blit(self.fon, (0, 135))
-        pygame.display.flip()
+        self.dino_screen.blit(self.fon, (0, 135))
+
         self.dino_group = pygame.sprite.Group()
         self.walls_group = pygame.sprite.Group()
         self.all_spr = pygame.sprite.Group()
-        n_walls = random.choice([i for i in range(10, 500)])
-        x_walls = list(set([random.choice([i for i in range(main_game.WIDTH + 100, 50000, 25)]) for p in range(n_walls)]))
+
+        n_walls = choice([i for i in range(10, 500)])
+        x_walls = list(set([choice([i for i in range(self.screen_width + 100, 50000, 25)]) for _ in range(n_walls)]))
         for i in x_walls:
             wall = WallForDino(self, i)
-        self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, main_game.WIDTH // 7, 303)
+
+        self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, self.screen_width // 7, 303, self.all_spr)
         self.dino_group.add(self.dino)
         self.all_spr.add(self.dino)
-        self.screen = screen
 
-        self.screen.fill((255, 255, 255))
-        self.screen.blit(self.fon, (self.fon_x, 135))
+        self.dino_screen.fill((255, 255, 255))
+        self.dino_screen.blit(self.fon, (self.fon_x, 135))
         self.dino.update()
         self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
-        self.all_spr.draw(self.screen)
+        self.all_spr.draw(self.dino_screen)
         pygame.display.flip()
-        self.fps = 13
         self.wall_move = -10
 
-        self.play()
+    def update(self):
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                terminate()
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    self.dino.jump()
+                elif event.key == pygame.K_ESCAPE:
+                    self.parent.dino_is_active = False
+        self.dino_screen.fill((255, 255, 255))
 
-    def play(self):
-        playing = True
-        while playing:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    terminate()
-                elif event.type == pygame.KEYDOWN:
-                    if event.key == 32:  # space
-                        self.dino.jump()
-                    elif event.key == 27:  # esc  => break the mini-game
-                        playing = False
-            self.screen.fill((255, 255, 255))
-            a = main_game.clock.tick()
-            for wall in self.walls_group:
-                o = wall.rect
-                if o[0] < - o[2]:
-                    self.walls_group.remove(wall)
-                wall.rect = wall.image.get_rect().move(wall.rect[0] + self.wall_move, wall.rect[1])
-            self.screen.blit(self.fon, (self.fon_x, 135))
-            self.dino.update()
-            self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
-            self.dino_group.draw(self.screen)
-            self.walls_group.draw(self.screen)
-            if self.dino.jumping:
-                self.fps = 9
-                self.wall_move = -15
-            else:
-                self.fps = 13
-                self.wall_move = -10
-            pygame.display.flip()
-            main_game.clock.tick(self.fps)
+        for wall in self.walls_group:
+            o = wall.rect
+            if o[0] < - o[2]:
+                self.walls_group.remove(wall)
+            wall.rect = wall.image.get_rect().move(wall.rect[0] + self.wall_move, wall.rect[1])
+        self.dino_screen.blit(self.fon, (self.fon_x, 135))
+        self.dino.update()
+        self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
+
+        self.dino_group.draw(self.dino_screen)
+        self.walls_group.draw(self.dino_screen)
+        return self.dino_screen
 
 
 if __name__ == "__main__":
