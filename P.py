@@ -37,7 +37,7 @@ class MainGame:
 
         self.clock = pygame.time.Clock()
         self.FPS = 50
-        self.dino_FPS = 15
+        self.dino_FPS = 30
 
         self.running = True
         self.main_screen = pygame.display.set_mode(self.SIZE)
@@ -277,6 +277,7 @@ class Camera:
 class AnimatedSprite(pygame.sprite.Sprite):
     def __init__(self, sheet, columns, rows, x, y, group):
         super().__init__(group)
+        self.group = group
         self.jumping = False
         self.sheet = sheet
         self.columns = columns
@@ -314,7 +315,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.cur_frame = self.cur_frame % len(self.frames)
 
     def jump(self):
-        super().__init__(main_game.all_sprites)
+        super().__init__(self.group)
         self.jumping = True
         self.frames = []
         self.cut_sheet(load_image('dino-jump.png'), 7, 1)
@@ -322,6 +323,9 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.image = self.frames[self.cur_frame]
         # self.image.set_colorkey(self.image.get_at((0, 0)))
         self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3])
+
+    def is_jumping(self):
+        return self.jumping
 
 
 class WallForDino(pygame.sprite.Sprite):
@@ -358,23 +362,27 @@ class GoogleDino:
             wall = WallForDino(self, i)
 
         self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, self.screen_width // 7, 303, self.all_spr)
+        self.dino_frame_per_game_frame = 0.5
+        self.dino_jumping = False
         self.dino_group.add(self.dino)
         self.all_spr.add(self.dino)
 
+        self.frame = 0
+
         self.dino_screen.fill((255, 255, 255))
         self.dino_screen.blit(self.fon, (self.fon_x, 135))
-        self.dino.update()
         self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
         self.all_spr.draw(self.dino_screen)
-        pygame.display.flip()
-        self.wall_move = -10
+        self.wall_move = -8
 
     def update(self):
+        self.frame += 1
+        self.dino_jumping = self.dino.is_jumping()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 terminate()
             elif event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_SPACE:
+                if event.key == pygame.K_SPACE and not self.dino_jumping:
                     self.dino.jump()
                 elif event.key == pygame.K_ESCAPE:
                     self.parent.dino_is_active = False
@@ -386,7 +394,15 @@ class GoogleDino:
                 self.walls_group.remove(wall)
             wall.rect = wall.image.get_rect().move(wall.rect[0] + self.wall_move, wall.rect[1])
         self.dino_screen.blit(self.fon, (self.fon_x, 135))
-        self.dino.update()
+
+        if self.dino_jumping:
+            self.dino_frame_per_game_frame = 0.35
+        else:
+            self.dino_frame_per_game_frame = 0.7
+
+        if self.frame * self.dino_frame_per_game_frame >= 1:
+            self.dino.update()
+            self.frame = 0
         self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
 
         self.dino_group.draw(self.dino_screen)
