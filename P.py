@@ -58,8 +58,6 @@ class MainGame:
         self.player_group = pygame.sprite.Group()
 
         self.dino_is_active = False
-        self.dino_game = GoogleDino(self)
-        self.dino_rect = pygame.Rect(0, 0, 500, 500)
 
     def load_level(self, f_name):
         fname = "data/" + f_name
@@ -192,6 +190,8 @@ class MainGame:
                             self.move_player(-1, 0)
                         elif event.key == pygame.K_SPACE:
                             self.dino_is_active = True
+                            self.dino_game = GoogleDino(self)
+                            self.dino_rect = pygame.Rect(0, 0, 500, 500)
                 # изменяем ракурс камеры
                 camera.update()
                 # обновляем положение всех спрайтов
@@ -312,6 +312,8 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.image = self.frames[self.cur_frame]
             self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3])
             # self.image.set_colorkey(self.image.get_at((0, 0)))
+        if not self.jumping and pygame.key.get_pressed()[32]:
+            self.jump()
         self.cur_frame = self.cur_frame % len(self.frames)
 
     def jump(self):
@@ -333,7 +335,9 @@ class WallForDino(pygame.sprite.Sprite):
         super().__init__(parent.walls_group, parent.all_spr)
         self.parent = parent
         self.image = load_image('kaktus.png')
-        self.rect = self.image.get_rect().move(x, 300 - self.image.get_rect()[3])
+        self.rect = self.image.get_rect().move(
+            main_game.WIDTH + x * self.image.get_rect()[2], 300 - self.image.get_rect()[3]
+        )
         sprite = pygame.sprite.Sprite()
         sprite.image = self.image
         self.image.set_colorkey(self.image.get_at((0, 0)))
@@ -356,10 +360,10 @@ class GoogleDino:
         self.walls_group = pygame.sprite.Group()
         self.all_spr = pygame.sprite.Group()
 
-        n_walls = choice([i for i in range(10, 500)])
-        x_walls = list(set([choice([i for i in range(self.screen_width + 100, 50000, 25)]) for _ in range(n_walls)]))
+        x_walls = self.generate_kaktuses()
+        print(x_walls)
         for i in x_walls:
-            wall = WallForDino(self, i)
+            _ = WallForDino(self, i)
 
         self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, self.screen_width // 7, 303, self.all_spr)
         self.dino_frame_per_game_frame = 0.5
@@ -374,6 +378,26 @@ class GoogleDino:
         self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
         self.all_spr.draw(self.dino_screen)
         self.wall_move = -8
+
+    def generate_kaktuses(self):
+        amount = choice([_ for _ in range(100, 1000)])
+        ooo = [_ for _ in range(1, 10)]
+        sp = [choice(ooo)]
+        for i in range(amount):
+            sp.append(sp[-1] + choice(ooo))
+        sp_1 = sp[:]
+        for _ in range(3):
+            for i in range(len(sp)):
+                try:
+                    a = sp[i:i + 3]
+                    if 0 < a[1] - a[0] == a[2] - a[1] and a[1] - a[0] < 7:
+                        sp_1.remove(sp[i])
+                    elif 1 < a[1] - a[0] < 6:
+                        sp_1.remove(sp[i])
+                except Exception:
+                    pass
+            sp = sp_1[::]
+        return sp
 
     def update(self):
         self.frame += 1
