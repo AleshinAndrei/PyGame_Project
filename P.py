@@ -289,6 +289,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
         self.rect = self.rect.move(x - self.rect[2], y - self.rect[3])
+        self.mask = pygame.mask.from_surface(self.image)
 
     def cut_sheet(self, sheet, columns, rows):
         self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
@@ -311,6 +312,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.cur_frame = 0
             self.image = self.frames[self.cur_frame]
             self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3])
+            self.mask = pygame.mask.from_surface(self.image)
             # self.image.set_colorkey(self.image.get_at((0, 0)))
         if not self.jumping and pygame.key.get_pressed()[32]:
             self.jump()
@@ -325,6 +327,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.image = self.frames[self.cur_frame]
         # self.image.set_colorkey(self.image.get_at((0, 0)))
         self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3])
+        self.mask = pygame.mask.from_surface(self.image)
 
     def is_jumping(self):
         return self.jumping
@@ -336,11 +339,12 @@ class WallForDino(pygame.sprite.Sprite):
         self.parent = parent
         self.image = load_image('kaktus.png')
         self.rect = self.image.get_rect().move(
-            main_game.WIDTH + x * self.image.get_rect()[2], 300 - self.image.get_rect()[3]
+            main_game.WIDTH + (x * self.image.get_rect()[2]), 300 - self.image.get_rect()[3]
         )
+        self.mask = pygame.mask.from_surface(self.image)
+        self.image.set_colorkey(self.image.get_at((0, 0)))
         sprite = pygame.sprite.Sprite()
         sprite.image = self.image
-        self.image.set_colorkey(self.image.get_at((0, 0)))
         sprite.rect = self.rect
         parent.walls_group.add(sprite)
 
@@ -361,11 +365,10 @@ class GoogleDino:
         self.all_spr = pygame.sprite.Group()
 
         x_walls = self.generate_kaktuses()
-        print(x_walls)
         for i in x_walls:
-            _ = WallForDino(self, i)
+            a = WallForDino(self, i)
 
-        self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, self.screen_width // 7, 303, self.all_spr)
+        self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, self.screen_width // 7, 295, self.all_spr)
         self.dino_frame_per_game_frame = 0.5
         self.dino_jumping = False
         self.dino_group.add(self.dino)
@@ -378,9 +381,18 @@ class GoogleDino:
         self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
         self.all_spr.draw(self.dino_screen)
         self.wall_move = -8
+        self.score = 0
+
+        self.font = pygame.font.Font(None, 30)
+        string_rendered = self.font.render(str(self.score), 1, pygame.Color('black'))
+        self.dino_screen.blit(string_rendered, (10, 10, 400, 20))
+        print(string_rendered)
+        self.running_game = True
+        self.close_dino = 70
 
     def generate_kaktuses(self):
-        amount = choice([_ for _ in range(100, 1000)])
+        amount = choice([_ for _ in range(50, 200)])
+        amount = 2
         ooo = [_ for _ in range(1, 10)]
         sp = [choice(ooo)]
         for i in range(amount):
@@ -392,7 +404,7 @@ class GoogleDino:
                     a = sp[i:i + 3]
                     if 0 < a[1] - a[0] == a[2] - a[1] and a[1] - a[0] < 7:
                         sp_1.remove(sp[i])
-                    elif 1 < a[1] - a[0] < 6:
+                    elif 1 < a[1] - a[0] < 7:
                         sp_1.remove(sp[i])
                 except Exception:
                     pass
@@ -400,6 +412,17 @@ class GoogleDino:
         return sp
 
     def update(self):
+        if not self.running_game and self.close_dino > 0:
+            self.close_dino -= 1
+            return self.dino_screen
+        elif self.close_dino == 0:
+            main_game.dino_is_active = False
+        elif self.walls_group.__len__() == 0:
+            text = self.font.render('You WIN!', False, pygame.Color('orange'))
+            self.dino_screen.blit(text, (200, 320, 500, 500))
+            self.running_game = False
+            return self.dino_screen
+
         self.frame += 1
         self.dino_jumping = self.dino.is_jumping()
         for event in pygame.event.get():
@@ -416,13 +439,17 @@ class GoogleDino:
             o = wall.rect
             if o[0] < - o[2]:
                 self.walls_group.remove(wall)
-            wall.rect = wall.image.get_rect().move(wall.rect[0] + self.wall_move, wall.rect[1])
+            wall.rect = wall.rect.move(self.wall_move, 0)
         self.dino_screen.blit(self.fon, (self.fon_x, 135))
 
         if self.dino_jumping:
             self.dino_frame_per_game_frame = 0.35
+            self.score += 2
         else:
             self.dino_frame_per_game_frame = 0.7
+            self.score += 0.2
+        string_rendered = self.font.render(str(int(self.score)), 1, pygame.Color('black'))
+        self.dino_screen.blit(string_rendered, (10, 10, 400, 20))
 
         if self.frame * self.dino_frame_per_game_frame >= 1:
             self.dino.update()
@@ -431,6 +458,20 @@ class GoogleDino:
 
         self.dino_group.draw(self.dino_screen)
         self.walls_group.draw(self.dino_screen)
+        main_game.main_screen.blit(self.dino_screen, main_game.dino_rect)
+
+        for i in self.walls_group:
+            i.mask = pygame.mask.from_surface(i.image)
+            print(self.dino.mask, i.mask, pygame.sprite.collide_mask(self.dino, i))
+            if pygame.sprite.collide_mask(self.dino, i) is not None:
+                print('STOP GAME!')
+                text = self.font.render('You lose', False, pygame.Color('black'))
+                self.dino_screen.blit(text, (200, 320, 500, 500))
+                self.running_game = False
+                for w in self.walls_group:
+                    w.rect = w.image.get_rect().move(-1 * (main_game.WIDTH + 100), 0)
+                break
+
         return self.dino_screen
 
 
