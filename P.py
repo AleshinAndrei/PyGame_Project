@@ -386,13 +386,11 @@ class GoogleDino:
         self.font = pygame.font.Font(None, 30)
         string_rendered = self.font.render(str(self.score), 1, pygame.Color('black'))
         self.dino_screen.blit(string_rendered, (10, 10, 400, 20))
-        print(string_rendered)
         self.running_game = True
         self.close_dino = 70
 
     def generate_kaktuses(self):
-        amount = choice([_ for _ in range(50, 200)])
-        amount = 2
+        amount = choice([_ for _ in range(25, 100)])
         ooo = [_ for _ in range(1, 10)]
         sp = [choice(ooo)]
         for i in range(amount):
@@ -460,11 +458,10 @@ class GoogleDino:
         self.walls_group.draw(self.dino_screen)
         main_game.main_screen.blit(self.dino_screen, main_game.dino_rect)
 
+        self.dino.mask = pygame.mask.from_surface(self.dino.image)
         for i in self.walls_group:
             i.mask = pygame.mask.from_surface(i.image)
-            print(self.dino.mask, i.mask, pygame.sprite.collide_mask(self.dino, i))
             if pygame.sprite.collide_mask(self.dino, i) is not None:
-                print('STOP GAME!')
                 text = self.font.render('You lose', False, pygame.Color('black'))
                 self.dino_screen.blit(text, (200, 320, 500, 500))
                 self.running_game = False
