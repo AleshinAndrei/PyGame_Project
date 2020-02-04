@@ -42,7 +42,7 @@ class MainGame:
         self.main_screen = pygame.display.set_mode(self.SIZE)
         self.main_screen.fill((0, 0, 0))
 
-        self.tile_images = {'wall': load_image('wall.png'), 'empty': load_image('grass.png')}
+        self.tile_images = {'wall': load_image('wall.png'), 'empty': load_image('ground.png')}
         self.player_image = load_image('mario.png')
 
         self.tile_width = 50
