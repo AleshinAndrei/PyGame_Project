@@ -28,7 +28,7 @@ class MainGame:
         self.lvl_height = None
         self.lvl_map = [['@']]
         self.difficulty = 10
-        self.save_moving = (0, 0)
+        self.closed_road = (0, 0)
 
         self.load_random_lvl()
         self.WIDTH = 500
@@ -128,7 +128,7 @@ class MainGame:
             queue = sample(new_queue, len(new_queue))
 
         i = 0
-        while i < self.lvl_width * self.lvl_height * self.difficulty / 100:
+        while i < self.lvl_width * self.lvl_height * self.difficulty / 300:
             y = randrange(6, self.lvl_height, 2)
             x = randrange(1, self.lvl_width, 2)
             if self.lvl_map[y][x] == ".":
@@ -170,7 +170,7 @@ class MainGame:
         ):
             if self.lvl_map[self.p_y + dy][self.p_x + dx] == "%":
                 self.new_dino_game()
-                self.save_moving = (dx, dy)
+                self.closed_road = (self.p_y + dy, self.p_x + dx)
             else:
                 self.lvl_map[self.p_y][self.p_x] = '.'
                 self.lvl_map[self.p_y + dy][self.p_x + dx] = '@'
@@ -198,7 +198,7 @@ class MainGame:
                     pygame.display.flip()
                     pygame.time.wait(self.wait_time)
                     if self.win_dino_game:
-                        self.move_player(*self.save_moving)
+                        self.lvl_map[self.closed_road[0]][self.closed_road[1]] = '.'
             else:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -212,10 +212,8 @@ class MainGame:
                             self.move_player(1, 0)
                         elif event.key == pygame.K_LEFT:
                             self.move_player(-1, 0)
-                        elif event.key == pygame.K_SPACE:
-                            self.dino_is_active = True
-                            self.dino_game = GoogleDino(self)
-                            self.dino_rect = pygame.Rect(0, 0, 500, 500)
+                        elif event.key == pygame.K_p:
+                            self.new_dino_game()
                 # изменяем ракурс камеры
                 camera.update()
                 # обновляем положение всех спрайтов
@@ -442,7 +440,7 @@ class GoogleDino:
         return self.running_game, self.win_game
 
     def update(self):
-        if self.walls_group.__len__() == 0:
+        if len(self.walls_group) == 0:
             text = self.font.render('You WIN!', False, pygame.Color('orange'))
             self.win_game = True
             self.dino_screen.blit(text, (200, 320, 500, 500))
@@ -466,6 +464,10 @@ class GoogleDino:
                     self.jumped = True
                 elif event.key == pygame.K_ESCAPE:
                     self.parent.dino_is_active = False
+                elif event.key == pygame.K_q:
+                    # отладочная клавиша, никому об этом не говори
+                    self.win_game = True
+                    self.running_game = False
 
         for wall in self.walls_group:
             o = wall.rect
