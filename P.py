@@ -140,7 +140,7 @@ class MainGame:
         self.lvl_map[y][x] = "$"
 
     def start(self):
-        intro_text = ['Hello!', 'There are some rules!', 'JOKE', "We have no rules"]
+        intro_text = ['Game by Aleshin Andrei and Grishina Lena', "Press 'space' to start"]
 
         background = pygame.transform.scale(load_image('fon.jpg'), self.SIZE)
         self.main_screen.blit(background, (0, 0))
@@ -213,7 +213,9 @@ class MainGame:
                         elif event.key == pygame.K_LEFT:
                             self.move_player(-1, 0)
                         elif event.key == pygame.K_SPACE:
-                            self.new_dino_game()
+                            self.dino_is_active = True
+                            self.dino_game = GoogleDino(self)
+                            self.dino_rect = pygame.Rect(0, 0, 500, 500)
                 # изменяем ракурс камеры
                 camera.update()
                 # обновляем положение всех спрайтов
@@ -313,7 +315,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
-        self.rect = self.rect.move(x - self.rect[2], y - self.rect[3])
+        self.rect = self.rect.move(x - self.rect[2], y - self.rect[3] + 5)
         self.mask = pygame.mask.from_surface(self.image)
 
     def cut_sheet(self, sheet, columns, rows):
@@ -336,7 +338,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
             self.cut_sheet(self.sheet, self.columns, self.rows)
             self.cur_frame = 0
             self.image = self.frames[self.cur_frame]
-            self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3])
+            self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3] + 5)
             self.mask = pygame.mask.from_surface(self.image)
             # self.image.set_colorkey(self.image.get_at((0, 0)))
         if not self.jumping and pygame.key.get_pressed()[32]:
@@ -351,7 +353,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
         self.cur_frame = 0
         self.image = self.frames[self.cur_frame]
         # self.image.set_colorkey(self.image.get_at((0, 0)))
-        self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3])
+        self.rect = self.rect.move(self.x - self.rect[2], self.y - self.rect[3] + 5)
         self.mask = pygame.mask.from_surface(self.image)
 
     def is_jumping(self):
@@ -413,10 +415,12 @@ class GoogleDino:
         string_rendered = self.font.render(str(self.score), 1, pygame.Color('black'))
         self.dino_screen.blit(string_rendered, (10, 10, 400, 20))
         self.running_game = True
+        self.close_dino = 60
+        self.jumped = False
 
     def generate_kaktuses(self):
-        amount = choice([_ for _ in range(25, 100)])
-        ooo = [_ for _ in range(1, 10)]
+        amount = choice([_ for _ in range(10, 25)])
+        ooo = [_ for _ in range(1, 15)]
         sp = [choice(ooo)]
         for i in range(amount):
             sp.append(sp[-1] + choice(ooo))
@@ -442,8 +446,14 @@ class GoogleDino:
             text = self.font.render('You WIN!', False, pygame.Color('orange'))
             self.win_game = True
             self.dino_screen.blit(text, (200, 320, 500, 500))
+            self.score += 100
             self.running_game = False
             return self.dino_screen
+        self.dino_screen.fill((255, 255, 255))
+        if not self.jumped:
+            print('!')
+            string = self.font.render("Нажмите 'пробел' для прыжка", False, pygame.Color('black'))
+            self.dino_screen.blit(string, (10, 400, 400, 20))
 
         self.frame += 1
         self.dino_jumping = self.dino.is_jumping()
@@ -453,9 +463,9 @@ class GoogleDino:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_SPACE and not self.dino_jumping:
                     self.dino.jump()
+                    self.jumped = True
                 elif event.key == pygame.K_ESCAPE:
                     self.parent.dino_is_active = False
-        self.dino_screen.fill((255, 255, 255))
 
         for wall in self.walls_group:
             o = wall.rect
@@ -466,7 +476,7 @@ class GoogleDino:
 
         if self.dino_jumping:
             self.dino_frame_per_game_frame = 0.35
-            self.score += 0.1
+            self.score += 0.05
         else:
             self.dino_frame_per_game_frame = 0.7
             self.score += 0.05
