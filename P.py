@@ -1,7 +1,7 @@
 import pygame
 import os
 import sys
-from random import random, sample, choice
+from random import random, sample, choice, randrange
 from math import e
 
 
@@ -27,7 +27,8 @@ class MainGame:
         self.lvl_width = None
         self.lvl_height = None
         self.lvl_map = [['@']]
-        self.difficulty = 0
+        self.difficulty = 10
+        self.save_moving = (0, 0)
 
         self.load_random_lvl()
         self.WIDTH = 500
@@ -38,6 +39,7 @@ class MainGame:
         self.clock = pygame.time.Clock()
         self.FPS = 50
         self.dino_FPS = 30
+        self.wait_time = 1500
 
         self.running = True
         self.main_screen = pygame.display.set_mode(self.SIZE)
@@ -57,7 +59,9 @@ class MainGame:
         self.tiles_group = pygame.sprite.Group()
         self.player_group = pygame.sprite.Group()
 
+        self.new_dino_game()
         self.dino_is_active = False
+        self.win_dino_game = True
 
     def load_level(self, f_name):
         fname = "data/" + f_name
@@ -93,10 +97,6 @@ class MainGame:
         queue = [(y, x, 0, 0, None, None)]
         stack = [[queue[0]]]
         while count > 0:
-            # print(''.join(map(str, range(self.lvl_width))))
-            # print('\n'.join([str(i) + ":\t" + ''.join(row) for i, row in enumerate(self.lvl_map)]))
-            # print(count)
-            # print()
             new_step = []
             new_queue = []
             for y, x, self_lvl, self_index, pre_point_lvl, pre_point_index in queue:
@@ -127,9 +127,17 @@ class MainGame:
                 stack.append(new_step)
             queue = sample(new_queue, len(new_queue))
 
-        # y = randrange(6, self.lvl_height, 2)
-        # x = randrange(1, self.lvl_width, 2)
-        # self.lvl_map[y][x] = "$"  # это у нас будет выходом, который перемещает нас на след. уровень
+        i = 0
+        while i < self.lvl_width * self.lvl_height * self.difficulty / 100:
+            y = randrange(6, self.lvl_height, 2)
+            x = randrange(1, self.lvl_width, 2)
+            if self.lvl_map[y][x] == ".":
+                self.lvl_map[y][x] = "%"
+                i += 1
+
+        y = randrange(6, self.lvl_height, 2)
+        x = randrange(1, self.lvl_width, 2)
+        self.lvl_map[y][x] = "$"
 
     def start(self):
         intro_text = ['Game by Aleshin Andrei and Grishina Lena', "Press 'space' to start"]
@@ -158,16 +166,26 @@ class MainGame:
     def move_player(self, dx, dy):
         if (
                 0 <= self.p_x + dx < self.lvl_width and 0 <= self.p_y + dy < self.lvl_height
-                and self.lvl_map[self.p_y + dy][self.p_x + dx] == '.'
+                and self.lvl_map[self.p_y + dy][self.p_x + dx] in {".", "%"}
         ):
-            self.lvl_map[self.p_y][self.p_x] = '.'
-            self.lvl_map[self.p_y + dy][self.p_x + dx] = '@'
-            self.p_x += dx
-            self.p_y += dy
-            self.player.rect = (
-                self.player.rect[0] + dx * self.tile_width, self.player.rect[1] + dy * self.tile_height,
-                self.player.rect[2], self.player.rect[3]
-            )
+            if self.lvl_map[self.p_y + dy][self.p_x + dx] == "%":
+                self.new_dino_game()
+                self.save_moving = (dx, dy)
+            else:
+                self.lvl_map[self.p_y][self.p_x] = '.'
+                self.lvl_map[self.p_y + dy][self.p_x + dx] = '@'
+                self.p_x += dx
+                self.p_y += dy
+                self.player.rect = (
+                    self.player.rect[0] + dx * self.tile_width, self.player.rect[1] + dy * self.tile_height,
+                    self.player.rect[2], self.player.rect[3]
+                )
+
+    def new_dino_game(self):
+        self.dino_rect = pygame.Rect(0, 0, 500, 500)
+        self.dino_is_active = True
+        self.win_dino_game = False
+        self.dino_game = GoogleDino(self)
 
     def main_gameplay(self):
         self.generate_level()
@@ -175,6 +193,12 @@ class MainGame:
         while True:
             if self.dino_is_active:
                 self.main_screen.blit(self.dino_game.update(), self.dino_rect)
+                self.dino_is_active, self.win_dino_game = self.dino_game.status()
+                if not self.dino_is_active:
+                    pygame.display.flip()
+                    pygame.time.wait(self.wait_time)
+                    if self.win_dino_game:
+                        self.move_player(*self.save_moving)
             else:
                 for event in pygame.event.get():
                     if event.type == pygame.QUIT:
@@ -211,7 +235,7 @@ class MainGame:
         self.lvl_height = len(self.lvl_map)
         for y in range(self.lvl_height):
             for x, cell in enumerate(self.lvl_map[y]):
-                if cell == '.':
+                if cell in {'.', '%'}:
                     Tile('empty', x, y, self)
                 elif cell == '#':
                     Tile('wall', x, y, self)
@@ -220,6 +244,9 @@ class MainGame:
                     self.player = Player(x, y, self)
                     self.p_x = x
                     self.p_y = y
+                elif cell == "$":
+                    pass
+
         self.all_sprites.draw(self.main_screen)
 
 
@@ -339,7 +366,7 @@ class WallForDino(pygame.sprite.Sprite):
         self.parent = parent
         self.image = load_image('kaktus.png')
         self.rect = self.image.get_rect().move(
-            main_game.WIDTH + (x * self.image.get_rect()[2]), 300 - self.image.get_rect()[3]
+            parent.parent.WIDTH + (x * self.image.get_rect()[2]), 300 - self.image.get_rect()[3]
         )
         self.mask = pygame.mask.from_surface(self.image)
         self.image.set_colorkey(self.image.get_at((0, 0)))
@@ -352,6 +379,7 @@ class WallForDino(pygame.sprite.Sprite):
 class GoogleDino:
     def __init__(self, parent):
         self.parent = parent
+        self.win_game = None
 
         self.screen_size = self.screen_width, self.screen_height = 500, 500
         self.dino_screen = pygame.Surface(self.screen_size)
@@ -410,14 +438,13 @@ class GoogleDino:
             sp = sp_1[::]
         return sp
 
+    def status(self):
+        return self.running_game, self.win_game
+
     def update(self):
-        if not self.running_game and self.close_dino > 0:
-            self.close_dino -= 1
-            return self.dino_screen
-        elif self.close_dino == 0:
-            main_game.dino_is_active = False
-        elif self.walls_group.__len__() == 0:
+        if self.walls_group.__len__() == 0:
             text = self.font.render('You WIN!', False, pygame.Color('orange'))
+            self.win_game = True
             self.dino_screen.blit(text, (200, 320, 500, 500))
             self.score += 100
             self.running_game = False
@@ -463,17 +490,18 @@ class GoogleDino:
 
         self.dino_group.draw(self.dino_screen)
         self.walls_group.draw(self.dino_screen)
-        main_game.main_screen.blit(self.dino_screen, main_game.dino_rect)
+        self.parent.main_screen.blit(self.dino_screen, self.parent.dino_rect)
 
         self.dino.mask = pygame.mask.from_surface(self.dino.image)
         for i in self.walls_group:
             i.mask = pygame.mask.from_surface(i.image)
             if pygame.sprite.collide_mask(self.dino, i) is not None:
                 text = self.font.render('You lose', False, pygame.Color('black'))
+                self.win_game = False
                 self.dino_screen.blit(text, (200, 320, 500, 500))
                 self.running_game = False
                 for w in self.walls_group:
-                    w.rect = w.image.get_rect().move(-1 * (main_game.WIDTH + 100), 0)
+                    w.rect = w.image.get_rect().move(-1 * (self.parent.WIDTH + 100), 0)
                 break
 
         return self.dino_screen
