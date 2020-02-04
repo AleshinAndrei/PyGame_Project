@@ -97,10 +97,6 @@ class MainGame:
         queue = [(y, x, 0, 0, None, None)]
         stack = [[queue[0]]]
         while count > 0:
-            # print(''.join(map(str, range(self.lvl_width))))
-            # print('\n'.join([str(i) + ":\t" + ''.join(row) for i, row in enumerate(self.lvl_map)]))
-            # print(count)
-            # print()
             new_step = []
             new_queue = []
             for y, x, self_lvl, self_index, pre_point_lvl, pre_point_index in queue:
@@ -237,7 +233,7 @@ class MainGame:
         self.lvl_height = len(self.lvl_map)
         for y in range(self.lvl_height):
             for x, cell in enumerate(self.lvl_map[y]):
-                if cell == '.':
+                if cell in {'.', '%'}:
                     Tile('empty', x, y, self)
                 elif cell == '#':
                     Tile('wall', x, y, self)
@@ -246,6 +242,9 @@ class MainGame:
                     self.player = Player(x, y, self)
                     self.p_x = x
                     self.p_y = y
+                elif cell == "$":
+                    pass
+
         self.all_sprites.draw(self.main_screen)
 
 
