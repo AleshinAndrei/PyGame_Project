@@ -46,6 +46,10 @@ class MainGame:
         self.main_screen.fill((0, 0, 0))
 
         self.tile_images = {'wall': load_image('wall.png'), 'empty': load_image('ground.png')}
+        cup_image = load_image('ground.png')
+        cup_image.blit(load_image("cup.png"), (5, 5))
+        self.tile_images['cup'] = cup_image
+
         self.player_image = load_image('mario.png')
 
         self.tile_width = 50
@@ -128,16 +132,21 @@ class MainGame:
             queue = sample(new_queue, len(new_queue))
 
         i = 0
-        while i < self.lvl_width * self.lvl_height * self.difficulty / 300:
+        while i < self.lvl_width * self.lvl_height * self.difficulty / 3000:
             y = randrange(6, self.lvl_height, 2)
             x = randrange(1, self.lvl_width, 2)
             if self.lvl_map[y][x] == ".":
                 self.lvl_map[y][x] = "%"
                 i += 1
 
-        y = randrange(6, self.lvl_height, 2)
-        x = randrange(1, self.lvl_width, 2)
-        self.lvl_map[y][x] = "$"
+        while True:
+            y = randrange(6, self.lvl_height, 2)
+            x = randrange(1, self.lvl_width, 2)
+            if self.lvl_map[y][x] == '.':
+                self.lvl_map[y][x] = "$"
+                print(x, y)
+                break
+        self.lvl_map[0][0] = "$"
 
     def start(self):
         intro_text = ['Game by Aleshin Andrei and Grishina Lena', "Press 'space' to start"]
@@ -243,7 +252,7 @@ class MainGame:
                     self.p_x = x
                     self.p_y = y
                 elif cell == "$":
-                    pass
+                    Tile('cup', x, y, self)
 
         self.all_sprites.draw(self.main_screen)
 
