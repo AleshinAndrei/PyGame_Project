@@ -67,17 +67,6 @@ class MainGame:
         self.dino_is_active = False
         self.win_dino_game = True
 
-    def load_level(self, f_name):
-        fname = "data/" + f_name
-        try:
-            with open(fname, 'r') as mapFile:
-                level_map = [line.strip() for line in mapFile]
-            max_width = max(map(len, level_map))
-            self.lvl_map = list(map(list, map(lambda x: x.ljust(max_width, '.'), level_map)))
-        except FileNotFoundError:
-            print(f"Файл '{f_name}' не найден")
-            terminate()
-
     def load_random_lvl(self):
         self.lvl_width = 59
         self.lvl_height = 54
@@ -144,7 +133,6 @@ class MainGame:
             x = randrange(1, self.lvl_width, 2)
             if self.lvl_map[y][x] == '.':
                 self.lvl_map[y][x] = "$"
-                print(x, y)
                 break
         self.lvl_map[0][0] = "$"
 
@@ -383,6 +371,23 @@ class WallForDino(pygame.sprite.Sprite):
         parent.walls_group.add(sprite)
 
 
+class Protection(pygame.sprite.Sprite):
+    def __init__(self, parent, x):
+        self.__class__.__name__ = 'Protection'
+        self.parent = parent
+        self.image = load_image('protect.png')
+        self.rect = self.image.get_rect().move(
+            parent.parent.WIDTH + (x * self.image.get_rect()[2]), 290 - self.image.get_rect()[3]
+        )
+        self.mask = pygame.mask.from_surface(self.image)
+        self.image.set_colorkey(self.image.get_at((0, 0)))
+        sprite = pygame.sprite.Sprite()
+        sprite.image = self.image
+        sprite.rect = self.rect
+        parent.all_spr.add(sprite)
+        parent.protect_spr.add(sprite)
+
+
 class GoogleDino:
     def __init__(self, parent):
         self.parent = parent
@@ -398,10 +403,13 @@ class GoogleDino:
         self.dino_group = pygame.sprite.Group()
         self.walls_group = pygame.sprite.Group()
         self.all_spr = pygame.sprite.Group()
+        self.protect_spr = pygame.sprite.Group()
 
-        x_walls = self.generate_kaktuses()
+        x_walls, x_protect = self.generate_kaktuses()
         for i in x_walls:
-            a = WallForDino(self, i)
+            WallForDino(self, i)
+        for i in x_protect:
+            Protection(self, i)
 
         self.dino = AnimatedSprite(load_image('dino-run.png'), 5, 1, self.screen_width // 7, 295, self.all_spr)
         self.dino_frame_per_game_frame = 0.5
@@ -422,10 +430,11 @@ class GoogleDino:
         string_rendered = self.font.render(str(self.score), 1, pygame.Color('black'))
         self.dino_screen.blit(string_rendered, (10, 10, 400, 20))
         self.running_game = True
-        self.close_dino = 60
         self.jumped = False
+        self.protect_time = -1
 
     def generate_kaktuses(self):
+        # list of kaktuses
         amount = choice([_ for _ in range(10, 25)])
         ooo = [_ for _ in range(1, 15)]
         sp = [choice(ooo)]
@@ -443,7 +452,20 @@ class GoogleDino:
                 except Exception:
                     pass
             sp = sp_1[::]
-        return sp
+
+        # list of protection (щитов)
+        amount = choice([_ for _ in range(5)])
+        ooo = [_ for _ in range(15, 60)]
+        spis = [choice(ooo)]
+        for i in range(amount):
+            a = spis[-1] + choice(ooo)
+            if a >= sp[-1]:
+                break
+            elif a in sp:
+                continue
+            spis.append(a)
+
+        return sp, spis
 
     def status(self):
         return self.running_game, self.win_game
@@ -458,7 +480,6 @@ class GoogleDino:
             return self.dino_screen
         self.dino_screen.fill((255, 255, 255))
         if not self.jumped:
-            print('!')
             string = self.font.render("Нажмите 'пробел' для прыжка", False, pygame.Color('black'))
             self.dino_screen.blit(string, (10, 400, 400, 20))
 
@@ -482,7 +503,15 @@ class GoogleDino:
             o = wall.rect
             if o[0] < - o[2]:
                 self.walls_group.remove(wall)
+                self.all_spr.remove(wall)
             wall.rect = wall.rect.move(self.wall_move, 0)
+
+        for pr in self.protect_spr:
+            o = pr.rect
+            if o[0] < 55:
+                self.protect_spr.remove(pr)
+                self.all_spr.remove(pr)
+            pr.rect = pr.rect.move(self.wall_move, 0)
         self.dino_screen.blit(self.fon, (self.fon_x, 135))
 
         if self.dino_jumping:
@@ -499,21 +528,45 @@ class GoogleDino:
             self.frame = 0
         self.dino.image.set_colorkey(self.dino.image.get_at((0, 0)))
 
-        self.dino_group.draw(self.dino_screen)
-        self.walls_group.draw(self.dino_screen)
+        self.all_spr.draw(self.dino_screen)
         self.parent.main_screen.blit(self.dino_screen, self.parent.dino_rect)
 
         self.dino.mask = pygame.mask.from_surface(self.dino.image)
-        for i in self.walls_group:
+
+        for i in self.protect_spr:
             i.mask = pygame.mask.from_surface(i.image)
             if pygame.sprite.collide_mask(self.dino, i) is not None:
-                text = self.font.render('You lose', False, pygame.Color('black'))
-                self.win_game = False
-                self.dino_screen.blit(text, (200, 320, 500, 500))
-                self.running_game = False
-                for w in self.walls_group:
-                    w.rect = w.image.get_rect().move(-1 * (self.parent.WIDTH + 100), 0)
+                self.protect_time = 100
                 break
+        if self.protect_time <= 0:
+            if self.protect_time == 0:
+                try:
+                    a = self.protect_spr.sprites()[-1]
+                    self.protect_spr.remove(a)
+                    self.all_spr.remove(a)
+                except Exception:
+                    pass
+                self.protect_time = -1
+            for i in self.walls_group:
+                i.mask = pygame.mask.from_surface(i.image)
+                if pygame.sprite.collide_mask(self.dino, i) is not None:
+                    text = self.font.render('You lose', False, pygame.Color('black'))
+                    self.win_game = False
+                    self.dino_screen.blit(text, (200, 320, 500, 500))
+                    self.running_game = False
+                    for w in self.walls_group:
+                        w.rect = w.image.get_rect().move(-1 * (self.parent.WIDTH + 100), 0)
+                    break
+        else:
+            try:
+                a = self.protect_spr.sprites()[-1]
+                self.protect_spr.remove(a)
+                self.all_spr.remove(a)
+            except Exception:
+                pass
+            a = Protection(self, -21)
+            self.protect_spr.remove(a)
+            self.protect_time -= 1
 
         return self.dino_screen
 
