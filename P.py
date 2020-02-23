@@ -5,15 +5,16 @@ from random import random, sample, choice, randrange
 from math import e
 
 
+GENERATE_PARTICLE = randrange(25, 32)
+
+
 def load_image(name, colorkey=None):
     fullname = os.path.join('data', name)
+    image = pygame.image.load(fullname).convert()
     if colorkey is not None:
-        image = pygame.image.load(fullname).convert()
         if colorkey == -1:
             colorkey = image.get_at((0, 0))
         image.set_colorkey(colorkey)
-    else:
-        image = pygame.image.load(fullname).convert()
     return image
 
 
@@ -62,10 +63,16 @@ class MainGame:
         self.all_sprites = pygame.sprite.Group()
         self.tiles_group = pygame.sprite.Group()
         self.player_group = pygame.sprite.Group()
+        self.particles_group = pygame.sprite.Group()
 
         self.new_dino_game()
         self.dino_is_active = False
         self.win_dino_game = True
+
+        # сгенерируем частицы разного размера
+        self.fire = [load_image("star.png", -1)]
+        for scale in (5, 10, 20):
+            self.fire.append(pygame.transform.scale(self.fire[0], (scale, scale)))
 
     def load_random_lvl(self):
         self.lvl_width = 59
@@ -151,7 +158,7 @@ class MainGame:
             text_coord += intro_rect.height
             self.main_screen.blit(string_rendered, intro_rect)
 
-        while True:
+        while self.running:
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     terminate()
@@ -163,12 +170,14 @@ class MainGame:
     def move_player(self, dx, dy):
         if (
                 0 <= self.p_x + dx < self.lvl_width and 0 <= self.p_y + dy < self.lvl_height
-                and self.lvl_map[self.p_y + dy][self.p_x + dx] in {".", "%"}
+                and self.lvl_map[self.p_y + dy][self.p_x + dx] in {'.', '%', '$'}
         ):
             if self.lvl_map[self.p_y + dy][self.p_x + dx] == "%":
                 self.new_dino_game()
                 self.closed_road = (self.p_y + dy, self.p_x + dx)
             else:
+                if self.lvl_map[self.p_y + dy][self.p_x + dx] == "$":
+                    self.running = False
                 self.lvl_map[self.p_y][self.p_x] = '.'
                 self.lvl_map[self.p_y + dy][self.p_x + dx] = '@'
                 self.p_x += dx
@@ -187,7 +196,7 @@ class MainGame:
     def main_gameplay(self):
         self.generate_level()
         camera = Camera(self)
-        while True:
+        while self.running:
             if self.dino_is_active:
                 self.main_screen.blit(self.dino_game.update(), self.dino_rect)
                 self.dino_is_active, self.win_dino_game = self.dino_game.status()
@@ -198,7 +207,7 @@ class MainGame:
                         self.lvl_map[self.closed_road[0]][self.closed_road[1]] = '.'
             else:
                 for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
+                    if event.type == pygame.QUIT or (event.type == pygame.KEYUP and event.key == pygame.K_ESCAPE):
                         terminate()
                     elif event.type == pygame.KEYDOWN:
                         if event.key == pygame.K_UP:
@@ -224,6 +233,7 @@ class MainGame:
                 self.clock.tick(self.dino_FPS)
             else:
                 self.clock.tick(self.FPS)
+        self.game_end()
 
     def generate_level(self):
         self.lvl_width = len(self.lvl_map[0])
@@ -243,6 +253,65 @@ class MainGame:
                     Tile('cup', x, y, self)
 
         self.all_sprites.draw(self.main_screen)
+
+    def game_end(self):
+        count = 16
+
+        particle_count = 20
+        numbers = range(-5, 6)
+
+        text = 'You Win!!'
+        string_rendered = self.font.render(text, 1, pygame.Color('yellow'))
+        text_rect = string_rendered.get_rect()
+        text_rect.x = 200
+        text_rect.top = 200
+
+        pygame.time.set_timer(GENERATE_PARTICLE, 600)
+        while count > 0:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYUP and event.key == pygame.K_ESCAPE):
+                    terminate()
+                if event.type == GENERATE_PARTICLE:
+                    count -= 1
+                    for _ in range(particle_count):
+                        Particle(self, self.player.rect[:2], choice(numbers), choice(numbers))
+
+            self.main_screen.fill((0, 0, 0))
+
+            self.tiles_group.draw(self.main_screen)
+            self.player_group.draw(self.main_screen)
+            self.particles_group.draw(self.main_screen)
+            self.particles_group.update()
+
+            self.main_screen.blit(string_rendered, text_rect)
+            pygame.display.flip()
+            self.clock.tick(self.FPS)
+        terminate()
+
+
+class Particle(pygame.sprite.Sprite):
+    def __init__(self, parent, pos, dx, dy):
+        super().__init__(parent.particles_group)
+        self.parent = parent
+        self.image = choice(parent.fire)
+        self.rect = self.image.get_rect()
+        # у каждой частицы своя скорость - это вектор
+        self.velocity = [dx, dy]
+        # и свои координаты
+        self.rect.x, self.rect.y = pos
+        # гравитация будет одинаковой
+        self.gravity = 0.25
+
+    def update(self):
+        # применяем гравитационный эффект:
+        # движение с ускорением под действием гравитации
+        self.velocity[1] += self.gravity
+        # перемещаем частицу
+        self.rect.x += self.velocity[0]
+        self.rect.y += self.velocity[1]
+        # убиваем, если частица ушла за экран
+        if not self.rect.colliderect((0, 0, self.parent.WIDTH, self.parent.HEIGHT)):
+            self.kill()
 
 
 class Tile(pygame.sprite.Sprite):
