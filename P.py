@@ -144,19 +144,25 @@ class MainGame:
         self.lvl_map[0][0] = "$"
 
     def start(self):
-        intro_text = ['Game by Aleshin Andrei and Grishina Lena', "Press 'space' to start"]
-
         background = pygame.transform.scale(load_image('fon.jpg'), self.SIZE)
         self.main_screen.blit(background, (0, 0))
-        text_coord = 50
+
+        intro_text = ['New Game', "Press 'space' to start"]
+        text_coord = 125
         for line in intro_text:
-            string_rendered = self.font.render(line, 1, pygame.Color('black'))
+            string_rendered = self.font.render(line, 1, pygame.Color('yellow'))
             intro_rect = string_rendered.get_rect()
             text_coord += 10
             intro_rect.top = text_coord
             intro_rect.x = 10
             text_coord += intro_rect.height
             self.main_screen.blit(string_rendered, intro_rect)
+
+        string_rendered = self.font.render('Created by Aleshin Andrei and Grishina Lena', 1, pygame.Color('yellow'))
+        intro_rect = string_rendered.get_rect()
+        intro_rect.x = 10
+        intro_rect.top = 475
+        self.main_screen.blit(string_rendered, intro_rect)
 
         while self.running:
             for event in pygame.event.get():
