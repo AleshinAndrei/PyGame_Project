@@ -128,7 +128,7 @@ class MainGame:
             queue = sample(new_queue, len(new_queue))
 
         i = 0
-        while i < self.lvl_width * self.lvl_height * self.difficulty / 3000:
+        while i < self.lvl_width * self.lvl_height * self.difficulty / 1000:
             y = randrange(6, self.lvl_height, 2)
             x = randrange(1, self.lvl_width, 2)
             if self.lvl_map[y][x] == ".":
