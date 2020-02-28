@@ -255,9 +255,9 @@ class MainGame:
         self.all_sprites.draw(self.main_screen)
 
     def game_end(self):
-        count = 16
+        count = 6
 
-        particle_count = 20
+        particle_count = choice([_ for _ in range(20, 40)])
         numbers = range(-5, 6)
 
         text = 'You Win!!'
@@ -286,7 +286,10 @@ class MainGame:
             self.main_screen.blit(string_rendered, text_rect)
             pygame.display.flip()
             self.clock.tick(self.FPS)
-        terminate()
+
+        global main_game
+        main_game = MainGame()
+        main_game.start()
 
 
 class Particle(pygame.sprite.Sprite):
