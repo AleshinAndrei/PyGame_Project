@@ -41,6 +41,7 @@ class MainGame:
         self.FPS = 50
         self.dino_FPS = 30
         self.wait_time = 1500
+        self.timer = 15 * self.FPS
 
         self.running = True
         self.main_screen = pygame.display.set_mode(self.SIZE)
@@ -59,6 +60,7 @@ class MainGame:
         self.player = None
         self.p_x = 0
         self.p_y = 0
+        self.player_name = ""
 
         self.all_sprites = pygame.sprite.Group()
         self.tiles_group = pygame.sprite.Group()
@@ -68,6 +70,8 @@ class MainGame:
         self.new_dino_game()
         self.dino_is_active = False
         self.win_dino_game = True
+
+        self.win_main_game = False
 
         # сгенерируем частицы разного размера
         self.fire = [load_image("star.png", -1)]
@@ -144,13 +148,44 @@ class MainGame:
         self.lvl_map[0][0] = "$"
 
     def start(self):
+        self.player_name = ""
         background = pygame.transform.scale(load_image('fon.jpg'), self.SIZE)
         self.main_screen.blit(background, (0, 0))
+
+        with open("records", "r") as file:
+            records = list(map(lambda line:
+                               (line.strip().split('\t')[0],
+                                int(line.strip().split('\t')[1])),
+                               file.readlines()))
+            top5_rendered = self.font.render("Top 5:", 1, pygame.Color('gold'))
+            top5_rect = top5_rendered.get_rect()  # center=(self.WIDTH - 200, 10)
+            y_coord = 10
+            top5_rect.top = y_coord
+            top5_rect.x = self.WIDTH - 210
+            y_coord += top5_rect.height + 10
+            self.main_screen.blit(top5_rendered, top5_rect)
+            for name, time in records[:5]:
+                name_rendered = self.font.render(name, 1, pygame.Color('gold'))
+                name_rect = name_rendered.get_rect()
+                name_rect.top = y_coord
+                name_rect.x = self.WIDTH - 210
+                self.main_screen.blit(name_rendered, name_rect)
+
+                time_rendered = self.font.render(
+                    f'{time // 60}:{time % 60:0>2}',
+                    1, pygame.Color('gold')
+                )
+                time_rect = time_rendered.get_rect()
+                time_rect.top = y_coord
+                time_rect.x = self.WIDTH - time_rect.width - 2
+                self.main_screen.blit(time_rendered, time_rect)
+
+                y_coord += name_rect.height + 10
 
         intro_text = ['New Game', "Find the Cup", "Press 'space' to start"]
         text_coord = 115
         for line in intro_text:
-            string_rendered = self.font.render(line, 1, pygame.Color('darkorange'))
+            string_rendered = self.font.render(line, 1, pygame.Color('gold'))
             intro_rect = string_rendered.get_rect()
             text_coord += 10
             intro_rect.top = text_coord
@@ -158,7 +193,7 @@ class MainGame:
             text_coord += intro_rect.height
             self.main_screen.blit(string_rendered, intro_rect)
 
-        string_rendered = self.font.render('Created by Aleshin Andrei and Grishina Lena', 1, pygame.Color('darkorange'))
+        string_rendered = self.font.render('Created by Aleshin Andrei and Grishina Lena', 1, pygame.Color('gold'))
         intro_rect = string_rendered.get_rect()
         intro_rect.x = 10
         intro_rect.top = 475
@@ -169,9 +204,49 @@ class MainGame:
                 if event.type == pygame.QUIT:
                     terminate()
                 elif event.type == pygame.KEYDOWN or event.type == pygame.MOUSEBUTTONDOWN:
+                    self.entering_name()
                     self.main_gameplay()
             pygame.display.flip()
             self.clock.tick(self.FPS)
+
+    def entering_name(self):
+        background = pygame.transform.scale(load_image('fon.jpg'), self.SIZE)
+        self.main_screen.blit(background, (0, 0))
+
+        text = "Enter the name:"
+        entering = True
+        while entering:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    terminate()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        entering = False
+                    elif event.key == pygame.K_BACKSPACE:
+                        if self.player_name:
+                            self.player_name = self.player_name[:-1]
+                        print(self.player_name)
+                    else:
+                        if len(self.player_name) < 16:
+                            self.player_name += event.unicode
+
+                self.main_screen.blit(background, (0, 0))
+
+                text_rendered = self.font.render(text, 2, pygame.Color("yellow"))
+                name_rendered = self.font.render(self.player_name, 2, pygame.Color("green"))
+                text_rect = text_rendered.get_rect()
+                name_rect = name_rendered.get_rect()
+                text_rect.top = 80
+                text_rect.x = 160
+                name_rect.top = 100
+                name_rect.x = 160
+                self.main_screen.blit(text_rendered, text_rect)
+                self.main_screen.blit(name_rendered, name_rect)
+
+            pygame.display.flip()
+            self.clock.tick(self.FPS)
+
+        print(self.player_name)
 
     def move_player(self, dx, dy):
         if (
@@ -183,6 +258,7 @@ class MainGame:
                 self.closed_road = (self.p_y + dy, self.p_x + dx)
             else:
                 if self.lvl_map[self.p_y + dy][self.p_x + dx] == "$":
+                    self.win_main_game = True
                     self.running = False
                 self.lvl_map[self.p_y][self.p_x] = '.'
                 self.lvl_map[self.p_y + dy][self.p_x + dx] = '@'
@@ -202,6 +278,7 @@ class MainGame:
     def main_gameplay(self):
         self.generate_level()
         camera = Camera(self)
+        timer = self.timer
         while self.running:
             if self.dino_is_active:
                 self.main_screen.blit(self.dino_game.update(), self.dino_rect)
@@ -235,17 +312,39 @@ class MainGame:
                 self.tiles_group.draw(self.main_screen)
                 self.player_group.draw(self.main_screen)
 
-                string_rendered = self.font.render("Find the CUP", 2, pygame.Color('darkorange'))
-                intro_rect = string_rendered.get_rect()
-                intro_rect.top = 10
-                intro_rect.x = 180
-                self.main_screen.blit(string_rendered, intro_rect)
+                find_cup_rendered = self.font.render("Find the CUP", 2, pygame.Color('gold'))
+                find_cup_rect = find_cup_rendered.get_rect()
+                find_cup_rect.top = 12
+                find_cup_rect.x = 80
+                self.main_screen.blit(find_cup_rendered, find_cup_rect)
+
+                timer_string = "Remaining time: "
+                timer_string += str(timer // self.FPS)
+                if timer < self.timer // 3:
+                    timer_color = "red"
+                elif timer < 2 * self.timer // 3:
+                    timer_color = "goldenrod1"
+                else:
+                    timer_color = "seagreen1"
+                timer_rendered = self.font.render(timer_string, 2, pygame.Color(timer_color))
+                timer_rect = timer_rendered.get_rect()
+                timer_rect.top = 12
+                timer_rect.x = 250
+                self.main_screen.blit(timer_rendered, timer_rect)
+
             pygame.display.flip()
             if self.dino_is_active:
                 self.clock.tick(self.dino_FPS)
             else:
                 self.clock.tick(self.FPS)
-        self.game_end()
+                timer -= 1
+                if timer == 0:
+                    self.running = False
+
+        if self.win_main_game:
+            self.game_end_with_win(timer)
+        else:
+            self.game_end_with_lose()
 
     def generate_level(self):
         self.lvl_width = len(self.lvl_map[0])
@@ -266,17 +365,66 @@ class MainGame:
 
         self.all_sprites.draw(self.main_screen)
 
-    def game_end(self):
-        count = 6
-
-        particle_count = choice([_ for _ in range(20, 40)])
-        numbers = range(-5, 6)
-
-        text = 'You Win!!'
-        string_rendered = self.font.render(text, 1, pygame.Color('yellow'))
+    def game_end_with_lose(self):
+        text = 'You Lose!!'
+        string_rendered = self.font.render(text, 1, pygame.Color('red3'))
         text_rect = string_rendered.get_rect()
         text_rect.x = 200
         text_rect.top = 200
+        timer = 7 * self.FPS
+
+        escape = False
+        while (not escape) and timer:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT or (event.type == pygame.KEYUP and event.key == pygame.K_ESCAPE):
+                    terminate()
+                if event.type == pygame.KEYUP:
+                    escape = True
+                    break
+            timer -= 1
+
+            self.main_screen.fill((0, 0, 0))
+
+            self.tiles_group.draw(self.main_screen)
+            self.player_group.draw(self.main_screen)
+            self.particles_group.draw(self.main_screen)
+            self.particles_group.update()
+
+            self.main_screen.blit(string_rendered, text_rect)
+            pygame.display.flip()
+            self.clock.tick(self.FPS)
+
+        global main_game
+        main_game = MainGame()
+        main_game.start()
+
+    def game_end_with_win(self, timer):
+        count = 6
+
+        particle_count = choice(list(range(20, 40)))
+        numbers = range(-5, 6)
+
+        win_text = ['You Win!!',
+                    f'Time {(timer // self.FPS) // 60}:{(timer // self.FPS) % 60:0>2}',
+                    'Press Esc to Exit']
+        text_coord = 115
+        with open("records", "r+") as file:
+            records = list(map(lambda line:
+                               (line.strip().split('\t')[0],
+                                int(line.strip().split('\t')[1])),
+                               file.readlines()))
+            records.append((self.player_name, timer // self.FPS))
+            records.sort(key=lambda x: x[1])
+            file.seek(0)
+            file.write('\n'.join(map(lambda line: line[0] + '\t' + str(line[1]), records)))
+
+        lines_rendered = []
+        lines_rect = []
+        for line in win_text:
+            lines_rendered.append(self.font.render(line, 1, pygame.Color('yellow')))
+            lines_rect.append(lines_rendered[-1].get_rect(center=(self.WIDTH / 2, text_coord)))
+            text_coord += lines_rect[-1].height
+            self.main_screen.blit(lines_rendered[-1], lines_rect[-1])
 
         pygame.time.set_timer(GENERATE_PARTICLE, 600)
         while count > 0:
@@ -295,7 +443,8 @@ class MainGame:
             self.particles_group.draw(self.main_screen)
             self.particles_group.update()
 
-            self.main_screen.blit(string_rendered, text_rect)
+            for i in range(len(lines_rendered)):
+                self.main_screen.blit(lines_rendered[i], lines_rect[i])
             pygame.display.flip()
             self.clock.tick(self.FPS)
 
@@ -657,5 +806,6 @@ class GoogleDino:
 
 if __name__ == "__main__":
     pygame.init()
+    global main_game
     main_game = MainGame()
     main_game.start()
