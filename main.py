@@ -147,10 +147,10 @@ class MainGame:
         background = pygame.transform.scale(load_image('fon.jpg'), self.SIZE)
         self.main_screen.blit(background, (0, 0))
 
-        intro_text = ['New Game', "Press 'space' to start"]
-        text_coord = 125
+        intro_text = ['New Game', "Find the Cup", "Press 'space' to start"]
+        text_coord = 115
         for line in intro_text:
-            string_rendered = self.font.render(line, 1, pygame.Color('yellow'))
+            string_rendered = self.font.render(line, 1, pygame.Color('darkorange'))
             intro_rect = string_rendered.get_rect()
             text_coord += 10
             intro_rect.top = text_coord
@@ -158,7 +158,7 @@ class MainGame:
             text_coord += intro_rect.height
             self.main_screen.blit(string_rendered, intro_rect)
 
-        string_rendered = self.font.render('Created by Aleshin Andrei and Grishina Lena', 1, pygame.Color('yellow'))
+        string_rendered = self.font.render('Created by Aleshin Andrei and Grishina Lena', 1, pygame.Color('darkorange'))
         intro_rect = string_rendered.get_rect()
         intro_rect.x = 10
         intro_rect.top = 475
@@ -234,6 +234,12 @@ class MainGame:
                 self.main_screen.fill((0, 0, 0))
                 self.tiles_group.draw(self.main_screen)
                 self.player_group.draw(self.main_screen)
+
+                string_rendered = self.font.render("Find the CUP", 2, pygame.Color('darkorange'))
+                intro_rect = string_rendered.get_rect()
+                intro_rect.top = 10
+                intro_rect.x = 180
+                self.main_screen.blit(string_rendered, intro_rect)
             pygame.display.flip()
             if self.dino_is_active:
                 self.clock.tick(self.dino_FPS)
