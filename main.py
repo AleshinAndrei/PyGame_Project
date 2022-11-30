@@ -41,7 +41,7 @@ class MainGame:
         self.FPS = 50
         self.dino_FPS = 30
         self.wait_time = 1500
-        self.timer = 15 * self.FPS
+        self.timer = 80 * self.FPS
 
         self.running = True
         self.main_screen = pygame.display.set_mode(self.SIZE)
@@ -342,7 +342,7 @@ class MainGame:
                     self.running = False
 
         if self.win_main_game:
-            self.game_end_with_win(timer)
+            self.game_end_with_win(self.timer - timer)
         else:
             self.game_end_with_lose()
 
@@ -398,14 +398,14 @@ class MainGame:
         main_game = MainGame()
         main_game.start()
 
-    def game_end_with_win(self, timer):
+    def game_end_with_win(self, time):
         count = 6
 
         particle_count = choice(list(range(20, 40)))
         numbers = range(-5, 6)
 
         win_text = ['You Win!!',
-                    f'Time {(timer // self.FPS) // 60}:{(timer // self.FPS) % 60:0>2}',
+                    f'Time {(time // self.FPS) // 60}:{(time // self.FPS) % 60:0>2}',
                     'Press Esc to Exit']
         text_coord = 115
         with open("records", "r+") as file:
@@ -413,7 +413,7 @@ class MainGame:
                                (line.strip().split('\t')[0],
                                 int(line.strip().split('\t')[1])),
                                file.readlines()))
-            records.append((self.player_name, timer // self.FPS))
+            records.append((self.player_name, time // self.FPS))
             records.sort(key=lambda x: x[1])
             file.seek(0)
             file.write('\n'.join(map(lambda line: line[0] + '\t' + str(line[1]), records)))
