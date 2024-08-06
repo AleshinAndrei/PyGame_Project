@@ -141,7 +141,7 @@ class MainGame:
             if self.lvl_map[y][x] == '.':
                 self.lvl_map[y][x] = "$"
                 break
-        self.lvl_map[0][0] = "$"
+        # self.lvl_map[0][0] = "$"
 
     def render_top5(self):
         """Rendering TOP5 banner on the Home page in the right upper corner"""
